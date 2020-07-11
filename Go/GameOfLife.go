@@ -39,27 +39,39 @@ func (gol *GameOfLife) UpdateSerial() {
 	newMash := make([]int8, gol.n*gol.n)
 	for i := 0; i < gol.n; i++ {
 		for j := 0; j < gol.n; j++ {
-			gol.updateCell(nil, newMash, i, j)
+			gol.updateCell(newMash, i, j)
 		}
 	}
 	gol.mesh = newMash
 }
 
-func (gol *GameOfLife) UpdateParallel() {
+func (gol *GameOfLife) UpdateParallel(tasksNum int) {
 	defer elapsed("UpdateParallel")()
 	newMash := make([]int8, gol.n*gol.n)
 	var waitgroup sync.WaitGroup
-	for i := 0; i < gol.n; i++ {
-		for j := 0; j < gol.n; j++ {
-			waitgroup.Add(1)
-			go gol.updateCell(&waitgroup, newMash, i, j)
+	taskSize := gol.n / tasksNum
+	for i := 0; i < tasksNum; i++ {
+		waitgroup.Add(1)
+		toi := gol.n
+		if i < tasksNum-1 {
+			toi = (i + 1) * taskSize
 		}
+		go gol.updateSubMatrix(&waitgroup, newMash, i*taskSize, 0, toi, gol.n)
 	}
 	waitgroup.Wait()
 	gol.mesh = newMash
 }
 
-func (gol *GameOfLife) updateCell(waitgroup *sync.WaitGroup, newMesh []int8, i, j int) {
+func (gol *GameOfLife) updateSubMatrix(waitgroup *sync.WaitGroup, newMesh []int8, fromi, fromj, toi, toj int) {
+	for i := fromi; i < toi; i++ {
+		for j := fromj; j < toj; j++ {
+			gol.updateCell(newMesh, i, j)
+		}
+	}
+	waitgroup.Done()
+}
+
+func (gol *GameOfLife) updateCell(newMesh []int8, i, j int) {
 	neighbourCount := gol.getNeighbourCount(i, j)
 	if gol.mesh[i*gol.n+j] == ALIVE {
 		if neighbourCount == 2 || neighbourCount == 3 {
@@ -69,9 +81,6 @@ func (gol *GameOfLife) updateCell(waitgroup *sync.WaitGroup, newMesh []int8, i, 
 		if neighbourCount == 3 {
 			newMesh[i*gol.n+j] = ALIVE
 		}
-	}
-	if waitgroup != nil{
-		waitgroup.Done()
 	}
 }
 
@@ -113,6 +122,6 @@ func main() {
 	gol := GameOfLife{n: n}
 	gol.GenerateRandomMesh()
 	for {
-		gol.UpdateParallel()
+		gol.UpdateParallel(5)
 	}
 }
