@@ -122,6 +122,6 @@ func main() {
 	gol := GameOfLife{n: n}
 	gol.GenerateRandomMesh()
 	for {
-		gol.UpdateParallel(5)
+		gol.UpdateParallel(4)
 	}
 }
