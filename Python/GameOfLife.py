@@ -97,10 +97,10 @@ class GameOfLife:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-r", "--rows",
-                        help="Mesh dimension", type=int, choices=range(1, 100000),
+                        help="Mesh rows", type=int, choices=range(1, 100000),
                         default=50)
     parser.add_argument("-c", "--columns",
-                        help="Mesh dimension", type=int, choices=range(1, 100000),
+                        help="Mesh columns", type=int, choices=range(1, 100000),
                         default=50)
     parser.add_argument("-p", "--parallel",
                         help="Number of parallel threads", type=int, choices=range(1, 1000))
@@ -110,11 +110,11 @@ if __name__ == '__main__':
 
     gol = GameOfLife(args.rows, args.columns)
     gol.generate_random_mesh()
-    # gol.show_mesh()
+    gol.show_mesh()
 
     while True:
         if args.parallel:
             gol.update_parallel(args.parallel)
         else:
             gol.update_serial()
-        # gol.show_mesh()
+        gol.show_mesh()

@@ -154,6 +154,7 @@ func main() {
 
 	gol := GameOfLife{rows: rows, columns: columns}
 	gol.GenerateRandomMesh()
+	gol.PrintMesh()
 	for {
 		if len(os.Args) == 3 {
 			gol.UpdateSerial()
