@@ -35,7 +35,7 @@ func (gol *GameOfLife) PrintMesh() {
 }
 
 func (gol *GameOfLife) UpdateSerial() {
-	defer elapsed("UpdateSerial")()
+	defer logTime("UpdateSerial", nil)()
 	newMash := make([]int8, gol.n*gol.n)
 	for i := 0; i < gol.n; i++ {
 		for j := 0; j < gol.n; j++ {
@@ -46,7 +46,7 @@ func (gol *GameOfLife) UpdateSerial() {
 }
 
 func (gol *GameOfLife) UpdateParallel(tasksNum int) {
-	defer elapsed("UpdateParallel")()
+	defer logTime("UpdateParallel", &tasksNum)()
 	newMash := make([]int8, gol.n*gol.n)
 	var waitgroup sync.WaitGroup
 	taskSize := gol.n / tasksNum
@@ -102,26 +102,52 @@ func mod(a, b int) int { // returns only positive modulus
 	return (a%b + b) % b
 }
 
-func elapsed(what string) func() {
+func logTime(what string, tasksNum *int) func() {
 	start := time.Now()
 	return func() {
-		fmt.Printf("%s took %v\n", what, time.Since(start))
+		str := ""
+		if tasksNum != nil {
+			str = fmt.Sprintf(" with %v threads", *tasksNum)
+		}
+		fmt.Printf("%s took %v%s\n", what, time.Since(start), str)
 	}
 }
 
 func main() {
-	n, err := strconv.Atoi(os.Args[1])
-	if err != nil {
-		// handle error
-		fmt.Println(err)
+	var n, tasksNum int
+	var err1, err2 error
+
+	if len(os.Args) == 1 {
+		fmt.Println("Arguments missing")
 		os.Exit(2)
 	}
+
+	n, err1 = strconv.Atoi(os.Args[1])
+	if err1 != nil {
+		// handle error
+		fmt.Println(err1)
+		os.Exit(2)
+	}
+
+	if len(os.Args) > 2{
+		tasksNum, err2 = strconv.Atoi(os.Args[2])
+		if err2 != nil {
+			// handle error
+			fmt.Println(err1)
+			os.Exit(2)
+		}
+	}
+
 
 	rand.Seed(1)
 
 	gol := GameOfLife{n: n}
 	gol.GenerateRandomMesh()
 	for {
-		gol.UpdateParallel(4)
+		if len(os.Args) == 2 {
+			gol.UpdateSerial()
+		} else {
+			gol.UpdateParallel(tasksNum)
+		}
 	}
 }
