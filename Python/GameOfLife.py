@@ -11,38 +11,39 @@ ALIVE = 1
 
 
 class GameOfLife:
-    def __init__(self, n=50):
-        self.n = n
-        self.mesh = RawArray(np.ctypeslib.ctypes.c_int8, n * n)  # np.zeros(n *n, dtype=np.int8) #
+    def __init__(self, rows, columns):
+        self.rows = rows
+        self.columns = columns
+        self.mesh = RawArray(np.ctypeslib.ctypes.c_int8, rows * columns)  # np.zeros(n *n, dtype=np.int8) #
         self.new_mesh = None
 
     def show_mesh(self):
         image = np.array(self.mesh)
-        image = image.reshape((self.n, self.n))
-        plt.imshow(image, cmap='gray', vmin=0, vmax=1)
+        image = image.reshape((self.rows, self.columns))
+        plt.imshow(1 - image, cmap='gray', vmin=0, vmax=1)
         plt.show()
 
     def generate_random_mesh(self):
-        for i in range(self.n):
-            for j in range(self.n):
-                self.mesh[i * self.n + j] = np.random.randint(2, dtype=np.ctypeslib.ctypes.c_int8)
+        for i in range(self.rows):
+            for j in range(self.columns):
+                self.mesh[i * self.columns + j] = np.random.randint(2, dtype=np.ctypeslib.ctypes.c_int8)
 
     def update_serial(self):
-        self.new_mesh = RawArray(np.ctypeslib.ctypes.c_int8, self.n * self.n)  # np.zeros(self.n *self.n, dtype=np.int8)
-        for i in range(self.n):
-            for j in range(self.n):
+        self.new_mesh = RawArray(np.ctypeslib.ctypes.c_int8, self.rows * self.columns)  # np.zeros(self.n *self.n, dtype=np.int8)
+        for i in range(self.rows):
+            for j in range(self.columns):
                 self.update_cell(i, j)
         self.mesh = self.new_mesh
 
     def update_parallel(self, tasks_num):
-        self.new_mesh = RawArray(np.ctypeslib.ctypes.c_int8, self.n * self.n)
+        self.new_mesh = RawArray(np.ctypeslib.ctypes.c_int8, self.rows * self.columns)
         processes = []
         for i in range(tasks_num):
-            fromi = range(0, self.n, int(self.n / tasks_num))[i]
-            toi = fromi + int(self.n / tasks_num)
+            fromi = range(0, self.rows, int(self.rows / tasks_num))[i]
+            toi = fromi + int(self.rows / tasks_num)
             if i == tasks_num - 1:
-                toi = self.n
-            p = Process(target=self.update_submatrix, args=(fromi, 0, toi, self.n))
+                toi = self.rows
+            p = Process(target=self.update_submatrix, args=(fromi, 0, toi, self.columns))
             p.start()
             processes.append(p)
         for p in processes:
@@ -56,26 +57,29 @@ class GameOfLife:
 
     def update_cell(self, i, j):
         neighbour_count = self.get_neighbour_count(i, j)
-        if self.mesh[i * self.n + j] == ALIVE:
+        if self.mesh[i * self.columns + j] == ALIVE:
             if neighbour_count == 2 or neighbour_count == 3:
-                self.new_mesh[i * self.n + j] = ALIVE
+                self.new_mesh[i * self.columns + j] = ALIVE
         else:
             if neighbour_count == 3:
-                self.new_mesh[i * self.n + j] = ALIVE
+                self.new_mesh[i * self.columns + j] = ALIVE
 
     def get_neighbour_count(self, i, j):
         retval = 0
         for x in range(-1, 2):
             for y in range(-1, 2):
                 if x != 0 or y != 0:
-                    if self.mesh[(i + x) % self.n * self.n + (j + y) % self.n] == ALIVE:
+                    if self.mesh[(i + x) % self.rows * self.columns + (j + y) % self.columns] == ALIVE:
                         retval += 1
         return retval
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--ndimension",
+    parser.add_argument("-r", "--rows",
+                        help="Mesh dimension", type=int, choices=range(1, 100000),
+                        default=50)
+    parser.add_argument("-c", "--columns",
                         help="Mesh dimension", type=int, choices=range(1, 100000),
                         default=50)
     parser.add_argument("-p", "--parallel",
@@ -84,8 +88,9 @@ if __name__ == '__main__':
 
     np.random.seed(1)
 
-    gol = GameOfLife(args.ndimension)
+    gol = GameOfLife(args.rows, args.columns)
     gol.generate_random_mesh()
+    gol.show_mesh()
 
     while True:
         start = time.time()

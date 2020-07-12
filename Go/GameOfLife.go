@@ -14,20 +14,21 @@ const ALIVE = 1
 
 type GameOfLife struct {
 	mesh []int8
-	n    int
+	rows    int
+	columns int
 }
 
 func (gol *GameOfLife) GenerateRandomMesh() {
-	gol.mesh = make([]int8, gol.n*gol.n)
+	gol.mesh = make([]int8, gol.rows*gol.columns)
 	for i := range gol.mesh {
 		gol.mesh[i] = int8(rand.Intn(2))
 	}
 }
 
 func (gol *GameOfLife) PrintMesh() {
-	for i := 0; i < gol.n; i++ {
-		for j := 0; j < gol.n; j++ {
-			fmt.Print(gol.mesh[i*gol.n+j], " ")
+	for i := 0; i < gol.rows; i++ {
+		for j := 0; j < gol.columns; j++ {
+			fmt.Print(gol.mesh[i*gol.columns+j], " ")
 		}
 		fmt.Println()
 	}
@@ -36,9 +37,9 @@ func (gol *GameOfLife) PrintMesh() {
 
 func (gol *GameOfLife) UpdateSerial() {
 	defer logTime("UpdateSerial", nil)()
-	newMash := make([]int8, gol.n*gol.n)
-	for i := 0; i < gol.n; i++ {
-		for j := 0; j < gol.n; j++ {
+	newMash := make([]int8, gol.rows*gol.columns)
+	for i := 0; i < gol.rows; i++ {
+		for j := 0; j < gol.columns; j++ {
 			gol.updateCell(newMash, i, j)
 		}
 	}
@@ -47,16 +48,16 @@ func (gol *GameOfLife) UpdateSerial() {
 
 func (gol *GameOfLife) UpdateParallel(tasksNum int) {
 	defer logTime("UpdateParallel", &tasksNum)()
-	newMash := make([]int8, gol.n*gol.n)
+	newMash := make([]int8, gol.rows*gol.columns)
 	var waitgroup sync.WaitGroup
-	taskSize := gol.n / tasksNum
+	taskSize := gol.rows / tasksNum
 	for i := 0; i < tasksNum; i++ {
 		waitgroup.Add(1)
-		toi := gol.n
+		toi := gol.rows
 		if i < tasksNum-1 {
 			toi = (i + 1) * taskSize
 		}
-		go gol.updateSubMatrix(&waitgroup, newMash, i*taskSize, 0, toi, gol.n)
+		go gol.updateSubMatrix(&waitgroup, newMash, i*taskSize, 0, toi, gol.columns)
 	}
 	waitgroup.Wait()
 	gol.mesh = newMash
@@ -73,13 +74,13 @@ func (gol *GameOfLife) updateSubMatrix(waitgroup *sync.WaitGroup, newMesh []int8
 
 func (gol *GameOfLife) updateCell(newMesh []int8, i, j int) {
 	neighbourCount := gol.getNeighbourCount(i, j)
-	if gol.mesh[i*gol.n+j] == ALIVE {
+	if gol.mesh[i*gol.columns+j] == ALIVE {
 		if neighbourCount == 2 || neighbourCount == 3 {
-			newMesh[i*gol.n+j] = ALIVE
+			newMesh[i*gol.columns+j] = ALIVE
 		}
 	} else {
 		if neighbourCount == 3 {
-			newMesh[i*gol.n+j] = ALIVE
+			newMesh[i*gol.columns+j] = ALIVE
 		}
 	}
 }
@@ -89,7 +90,7 @@ func (gol *GameOfLife) getNeighbourCount(i, j int) int {
 	for x := -1; x < 2; x++ {
 		for y := -1; y < 2; y++ {
 			if x != 0 || y != 0 {
-				if gol.mesh[mod((i+x), gol.n)*gol.n+mod(j+y, gol.n)] == ALIVE {
+				if gol.mesh[mod((i+x), gol.rows)*gol.columns+mod(j+y, gol.columns)] == ALIVE {
 					retval++
 				}
 			}
@@ -114,26 +115,33 @@ func logTime(what string, tasksNum *int) func() {
 }
 
 func main() {
-	var n, tasksNum int
-	var err1, err2 error
+	var rows, columns, tasksNum int
+	var err1, err2, err3 error
 
-	if len(os.Args) == 1 {
+	if len(os.Args) <3 {
 		fmt.Println("Arguments missing")
 		os.Exit(2)
 	}
 
-	n, err1 = strconv.Atoi(os.Args[1])
+	rows, err1 = strconv.Atoi(os.Args[1])
 	if err1 != nil {
 		// handle error
 		fmt.Println(err1)
 		os.Exit(2)
 	}
 
-	if len(os.Args) > 2{
-		tasksNum, err2 = strconv.Atoi(os.Args[2])
-		if err2 != nil {
+	columns, err2 = strconv.Atoi(os.Args[2])
+	if err2 != nil {
+		// handle error
+		fmt.Println(err2)
+		os.Exit(2)
+	}
+
+	if len(os.Args) > 3{
+		tasksNum, err3 = strconv.Atoi(os.Args[3])
+		if err3 != nil {
 			// handle error
-			fmt.Println(err1)
+			fmt.Println(err3)
 			os.Exit(2)
 		}
 	}
@@ -141,13 +149,14 @@ func main() {
 
 	rand.Seed(1)
 
-	gol := GameOfLife{n: n}
+	gol := GameOfLife{rows: rows, columns: columns}
 	gol.GenerateRandomMesh()
 	for {
-		if len(os.Args) == 2 {
+		if len(os.Args) == 3 {
 			gol.UpdateSerial()
 		} else {
 			gol.UpdateParallel(tasksNum)
 		}
+		gol.PrintMesh()
 	}
 }
