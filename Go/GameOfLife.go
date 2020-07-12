@@ -13,7 +13,7 @@ const DEAD = 0
 const ALIVE = 1
 
 type GameOfLife struct {
-	mesh []int8
+	mesh    []int8
 	rows    int
 	columns int
 }
@@ -23,6 +23,10 @@ func (gol *GameOfLife) GenerateRandomMesh() {
 	for i := range gol.mesh {
 		gol.mesh[i] = int8(rand.Intn(2))
 	}
+}
+
+func (gol *GameOfLife) GenerateEmptyMesh() {
+	gol.mesh = make([]int8, gol.rows*gol.columns)
 }
 
 func (gol *GameOfLife) PrintMesh() {
@@ -36,7 +40,7 @@ func (gol *GameOfLife) PrintMesh() {
 }
 
 func (gol *GameOfLife) UpdateSerial() {
-	defer logTime("UpdateSerial", nil)()
+	defer logTime("UpdateSerial", nil, gol.rows, gol.columns)()
 	newMash := make([]int8, gol.rows*gol.columns)
 	for i := 0; i < gol.rows; i++ {
 		for j := 0; j < gol.columns; j++ {
@@ -47,7 +51,7 @@ func (gol *GameOfLife) UpdateSerial() {
 }
 
 func (gol *GameOfLife) UpdateParallel(tasksNum int) {
-	defer logTime("UpdateParallel", &tasksNum)()
+	defer logTime("UpdateParallel", &tasksNum, gol.rows, gol.columns)()
 	newMash := make([]int8, gol.rows*gol.columns)
 	var waitgroup sync.WaitGroup
 	taskSize := gol.rows / tasksNum
@@ -103,14 +107,14 @@ func mod(a, b int) int { // returns only positive modulus
 	return (a%b + b) % b
 }
 
-func logTime(what string, tasksNum *int) func() {
+func logTime(what string, tasksNum *int, rows, columns int) func() {
 	start := time.Now()
 	return func() {
 		str := ""
 		if tasksNum != nil {
 			str = fmt.Sprintf(" with %v threads", *tasksNum)
 		}
-		fmt.Printf("%s took %v%s\n", what, time.Since(start), str)
+		fmt.Printf("%s took %v%s for dimensions: %vx%v\n", what, time.Since(start), str, rows, columns)
 	}
 }
 
@@ -118,9 +122,9 @@ func main() {
 	var rows, columns, tasksNum int
 	var err1, err2, err3 error
 
-	if len(os.Args) <3 {
-		fmt.Println("Arguments missing")
-		os.Exit(2)
+	if len(os.Args) < 3 {
+		TestScaling()
+		return
 	}
 
 	rows, err1 = strconv.Atoi(os.Args[1])
@@ -137,7 +141,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	if len(os.Args) > 3{
+	if len(os.Args) > 3 {
 		tasksNum, err3 = strconv.Atoi(os.Args[3])
 		if err3 != nil {
 			// handle error
@@ -145,7 +149,6 @@ func main() {
 			os.Exit(2)
 		}
 	}
-
 
 	rand.Seed(1)
 
@@ -159,4 +162,29 @@ func main() {
 		}
 		gol.PrintMesh()
 	}
+}
+
+func StrongScaling() {
+	gol := GameOfLife{rows: 1000, columns: 1000}
+	gol.GenerateRandomMesh()
+	mesh := gol.mesh
+	for i := 1; i < 11; i++ {
+		gol.UpdateParallel(i)
+		gol.mesh = mesh
+	}
+}
+
+func WeakScaling() {
+	for i := 1; i < 11; i++ {
+		gol := GameOfLife{rows: 1000, columns: i * 1000}
+		gol.GenerateRandomMesh()
+		gol.UpdateParallel(i)
+	}
+}
+
+func TestScaling() {
+	fmt.Println("Strong scaling:")
+	StrongScaling()
+	fmt.Println("Weak scaling:")
+	WeakScaling()
 }

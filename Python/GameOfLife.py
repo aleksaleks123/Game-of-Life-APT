@@ -1,5 +1,7 @@
 import argparse
 from multiprocessing import Pool, Array, Process
+from random import random
+
 from multiprocessing.sharedctypes import RawArray
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +10,20 @@ import time
 # Possible cell statuses
 DEAD = 0
 ALIVE = 1
+
+
+def log_time(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        retval = func(*args, **kwargs)
+        end = time.time()
+        parallel = len(args) > 1
+        gol = args[0]
+        print(f'{"update_parallel" if parallel else "update_serial"} took {end - start}s'
+              f'{f" with {args[1]} threads" if parallel else ""} for dimensions: {gol.rows}x{gol.columns}')
+        return retval
+
+    return wrapper
 
 
 class GameOfLife:
@@ -26,15 +42,19 @@ class GameOfLife:
     def generate_random_mesh(self):
         for i in range(self.rows):
             for j in range(self.columns):
-                self.mesh[i * self.columns + j] = np.random.randint(2, dtype=np.ctypeslib.ctypes.c_int8)
+                self.mesh[
+                    i * self.columns + j] = 1 if random() > 0.5 else 0  # np.random.randint(2, dtype=np.ctypeslib.ctypes.c_int8)
 
+    @log_time
     def update_serial(self):
-        self.new_mesh = RawArray(np.ctypeslib.ctypes.c_int8, self.rows * self.columns)  # np.zeros(self.n *self.n, dtype=np.int8)
+        self.new_mesh = RawArray(np.ctypeslib.ctypes.c_int8,
+                                 self.rows * self.columns)  # np.zeros(self.n *self.n, dtype=np.int8)
         for i in range(self.rows):
             for j in range(self.columns):
                 self.update_cell(i, j)
         self.mesh = self.new_mesh
 
+    @log_time
     def update_parallel(self, tasks_num):
         self.new_mesh = RawArray(np.ctypeslib.ctypes.c_int8, self.rows * self.columns)
         processes = []
@@ -90,15 +110,11 @@ if __name__ == '__main__':
 
     gol = GameOfLife(args.rows, args.columns)
     gol.generate_random_mesh()
-    gol.show_mesh()
+    # gol.show_mesh()
 
     while True:
-        start = time.time()
         if args.parallel:
             gol.update_parallel(args.parallel)
         else:
             gol.update_serial()
-        end = time.time()
-        print(f'{"update_parallel" if args.parallel else "update_serial"} took {end - start}s'
-              f'{f" with {args.parallel} threads" if args.parallel else ""}')
-        gol.show_mesh()
+        # gol.show_mesh()
