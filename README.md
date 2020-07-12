@@ -18,6 +18,8 @@ This file contains GameOfLife class that has parallel and serial implementation 
 
 - -p => number of parallel threads
 
+Each game state is visualised using the matplotlib.
+
 ### testScalings.py
 This file tests strong and weak scaling of parallel implementation.
 
@@ -63,6 +65,8 @@ After running this command, an executable file (`GameOfLife.exe` on Windows) wil
 - param2 => mesh columns
 
 - param3 => number of parallel threads
+
+Each game state is visualised using the fmt prints.
 
 If the executable file is run without any parameters, the test for strong and weak scaling will start.
 
