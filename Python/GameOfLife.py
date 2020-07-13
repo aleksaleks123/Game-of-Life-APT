@@ -1,6 +1,6 @@
 import argparse
 from multiprocessing import Pool, Array, Process
-from random import random
+from random import random, seed
 
 from multiprocessing.sharedctypes import RawArray
 import numpy as np
@@ -93,6 +93,13 @@ class GameOfLife:
                         retval += 1
         return retval
 
+    def save(self, path, parallel, iter):
+        with open(f'{path}/{"parallel" if parallel else "serial"}{iter}.mesh', 'w') as file:
+            for i in range(self.rows):
+                for j in range(self.columns):
+                    file.write(f"{self.mesh[i * self.columns + j]} ")
+                file.write("\n")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -104,17 +111,23 @@ if __name__ == '__main__':
                         default=50)
     parser.add_argument("-p", "--parallel",
                         help="Number of parallel threads", type=int, choices=range(1, 1000))
+    parser.add_argument("-s", "--save",
+                        help="Save meshes to this path")
     args = parser.parse_args()
 
-    np.random.seed(1)
+    # np.random.seed(1)
+    seed(1)
 
     gol = GameOfLife(args.rows, args.columns)
     gol.generate_random_mesh()
-    gol.show_mesh()
+    iter = 0
 
     while True:
+        gol.show_mesh()
+        if args.save:
+            gol.save(args.save, args.parallel, iter)
+        iter += 1
         if args.parallel:
             gol.update_parallel(args.parallel)
         else:
             gol.update_serial()
-        gol.show_mesh()

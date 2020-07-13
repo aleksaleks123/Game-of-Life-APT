@@ -103,6 +103,24 @@ func (gol *GameOfLife) getNeighbourCount(i, j int) int {
 	return retval
 }
 
+func (gol *GameOfLife) save(path string, tasksNum int, iter int) {
+	fileName := "serial"
+	if tasksNum > 0 {
+		fileName = "parallel"
+	}
+	file, err := os.Create(fmt.Sprintf("%s/%s%v.mesh", path, fileName, iter))
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	for i := 0; i < gol.rows; i++ {
+		for j := 0; j < gol.columns; j++ {
+			file.WriteString(fmt.Sprint(gol.mesh[i*gol.columns+j], " "))
+		}
+		file.WriteString("\n")
+	}
+}
+
 func mod(a, b int) int { // returns only positive modulus
 	return (a%b + b) % b
 }
@@ -122,30 +140,36 @@ func main() {
 	var rows, columns, tasksNum int
 	var err1, err2, err3 error
 
-	if len(os.Args) < 3 {
+	if len(os.Args) < 4 {
 		TestScaling()
 		return
 	}
 
-	rows, err1 = strconv.Atoi(os.Args[1])
+	path := os.Args[1]
+
+	rows, err1 = strconv.Atoi(os.Args[2])
 	if err1 != nil {
 		// handle error
 		fmt.Println(err1)
 		os.Exit(2)
 	}
 
-	columns, err2 = strconv.Atoi(os.Args[2])
+	columns, err2 = strconv.Atoi(os.Args[3])
 	if err2 != nil {
 		// handle error
 		fmt.Println(err2)
 		os.Exit(2)
 	}
 
-	if len(os.Args) > 3 {
-		tasksNum, err3 = strconv.Atoi(os.Args[3])
+	if len(os.Args) > 4 {
+		tasksNum, err3 = strconv.Atoi(os.Args[4])
 		if err3 != nil {
 			// handle error
 			fmt.Println(err3)
+			os.Exit(2)
+		}
+		if tasksNum < 1 {
+			fmt.Println("TasksNum must be positive")
 			os.Exit(2)
 		}
 	}
@@ -154,14 +178,18 @@ func main() {
 
 	gol := GameOfLife{rows: rows, columns: columns}
 	gol.GenerateRandomMesh()
-	gol.PrintMesh()
+	iter := 0
 	for {
-		if len(os.Args) == 3 {
+		gol.PrintMesh()
+		if path != "-" {
+			gol.save(path, tasksNum, iter)
+		}
+		iter++
+		if tasksNum <= 0 {
 			gol.UpdateSerial()
 		} else {
 			gol.UpdateParallel(tasksNum)
 		}
-		gol.PrintMesh()
 	}
 }
 
