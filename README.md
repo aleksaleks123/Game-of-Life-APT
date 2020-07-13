@@ -18,6 +18,8 @@ This file contains GameOfLife class that has parallel and serial implementation 
 
 - -p => number of parallel threads
 
+- -s => save meshes in this directory 
+
 Each game state is visualised using the matplotlib.
 
 ### testScalings.py
@@ -58,13 +60,15 @@ This file contains GameOfLife struct with its methods for parallel and serial im
 
 After running this command, an executable file (`GameOfLife.exe` on Windows) will appear.
 
-`GameOfLife.exe param1 param2 param3`
+`GameOfLife.exe param1 param2 param3 param4`
 
-- param1 => mesh rows
+- param1 => save meshes in this directory (does not save if value is `-`)
 
-- param2 => mesh columns
+- param2 => mesh rows
 
-- param3 => number of parallel threads
+- param3 => mesh columns
+
+- param4 => number of parallel threads
 
 Each game state is visualised using the fmt prints.
 
