@@ -112,7 +112,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--parallel",
                         help="Number of parallel threads", type=int, choices=range(1, 1000))
     parser.add_argument("-s", "--save",
-                        help="Save meshes to this path")
+                        help="Save meshes in this directory")
     args = parser.parse_args()
 
     # np.random.seed(1)
